@@ -1,0 +1,14 @@
+{
+  "mappings": {
+    "quality_giver": {
+      "properties": {
+        "user_id": {
+          "type": "keyword"
+        },
+        "quality": {
+          "type":"double"
+        }
+      }
+    }
+  }
+}

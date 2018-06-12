@@ -1,0 +1,14 @@
+{
+  "mappings": {
+    "params": {
+      "properties": {
+        "param_hash": {
+          "type": "integer"
+        },
+        "weight": {
+          "type": "double"
+        }
+      }
+    }
+  }
+}

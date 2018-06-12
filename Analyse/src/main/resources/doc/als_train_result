@@ -1,0 +1,6 @@
+Case 1:
+    各种行为融合在一起给出评分，最优的参数
+    	als_db2cf56d589d-alpha: 20.0,
+    	als_db2cf56d589d-rank: 20,
+    	als_db2cf56d589d-regParam: 0.01
+

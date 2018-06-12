@@ -1,0 +1,22 @@
+{
+  "mappings": {
+    "group": {
+      "properties": {
+        "user_id": {
+          "type": "keyword"
+        },
+        "groups": {
+          "type":"nested",
+          "properties":{
+            "group_user_id":{
+              "type":"long"
+            },
+            "group_num":{
+              "type":"integer"
+            }
+          }
+        }
+      }
+    }
+  }
+}

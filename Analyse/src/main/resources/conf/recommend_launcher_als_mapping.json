@@ -1,0 +1,22 @@
+{
+  "mappings": {
+    "als": {
+      "properties": {
+        "user_id": {
+          "type": "keyword"
+        },
+        "recommendations": {
+          "type":"nested",
+          "properties":{
+            "topic_id":{
+              "type":"long"
+            },
+            "score":{
+              "type":"int"
+            }
+          }
+        }
+      }
+    }
+  }
+}

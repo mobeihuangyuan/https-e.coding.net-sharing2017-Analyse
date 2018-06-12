@@ -1,0 +1,22 @@
+{
+  "mappings": {
+    "one_hot_intimacy": {
+      "properties": {
+        "user_id": {
+          "type": "keyword"
+        },
+        "intimacies": {
+          "type":"nested",
+          "properties":{
+            "user_id":{
+              "type":"long"
+            },
+            "intimacy":{
+              "type":"double"
+            }
+          }
+        }
+      }
+    }
+  }
+}

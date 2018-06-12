@@ -1,0 +1,8 @@
+#创建als推荐结果表
+CREATE EXTERNAL TABLE recommend_base_als(
+  user_id INT COMMENT '用户ID',
+  recommendations ARRAY<STRUCT<topic_id:BIGINT,score:INT>> COMMENT '推荐列表'
+)
+COMMENT '基于ALS的推荐列表'
+STORED AS PARQUET
+LOCATION "/user/hadoop/recommend/online/als_baseline";

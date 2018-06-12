@@ -1,0 +1,23 @@
+{
+  "mappings": {
+    "behavior": {
+      "properties": {
+        "behavior_id": {
+          "type": "long"
+        },
+        "behavior_type": {
+          "type": "string"
+        },
+        "behavior_count": {
+          "type": "long"
+        },
+        "cpt_date": {
+          "type": "string"
+        },
+        "count_type": {
+          "type": "String"
+        }
+      }
+    }
+  }
+}
