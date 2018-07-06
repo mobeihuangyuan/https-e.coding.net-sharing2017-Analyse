@@ -1,8 +1,8 @@
 package com.sharing.utils
 
+import com.sharing.Params
 import org.apache.spark.sql.{SQLContext, SparkSession}
 import org.apache.spark.{SparkConf, SparkContext}
-import utils.Params
 
 /**
  * Created by xia.jun on 16/8/8.

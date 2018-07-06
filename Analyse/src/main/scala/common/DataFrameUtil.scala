@@ -1,4 +1,4 @@
-package com.sharing.utils
+package common
 
 import java.util.Date
 

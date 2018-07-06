@@ -1,16 +1,18 @@
+package com.sharing.analyse
+
 import java.sql.{Connection, DriverManager, PreparedStatement}
 import java.text.SimpleDateFormat
 import java.util.Calendar
 
-import org.slf4j.LoggerFactory
 import com.alibaba.fastjson.JSON
 import com.hadoop.mapreduce.LzoTextInputFormat
-import com.sharing.utils.{BaseClass, ParamsParseUtil}
-import common.mysql_paras
+import com.sharing.{Params, ParamsParseUtil}
+import com.sharing.utils.BaseClass
+import common.{TimeDate, mysql_paras}
 import org.apache.hadoop.io.{LongWritable, Text}
 import org.apache.spark.sql._
 import org.apache.spark.sql.types._
-import utils.Params
+import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
@@ -36,13 +38,28 @@ object ClickRate extends BaseClass{
   }
 
   override def execute(params: Params): Unit = {
-    val dayarray=common.TimeDate.getAlldays_InNdays_yyyy_mm_dd(1)
+    println("params=="+params)
+    val startday=TimeDate.show(params.paramMap.get(mysql_paras.param_name_startday))
+    val endday=TimeDate.show(params.paramMap.get(mysql_paras.param_name_endday))
+    var dayarray=new ArrayBuffer[String]()
+
+
+    if(startday.contains("-")&&endday.contains("-")){
+      dayarray=TimeDate.getAlldaysyyyy_MM_dd_by_startday_endday(startday,endday)
+    }else{
+      var startTime=startday
+      if(startTime.length==8) startTime=startTime.substring(0,4)+"-"+startTime.substring(4,6)+"-"+startTime.substring(6,8)
+      var endime=endday
+      if(endime.length==8) endime=endime.substring(0,4)+"-"+endime.substring(4,6)+"-"+endime.substring(6,8)
+
+      dayarray=TimeDate.getAlldaysyyyy_MM_dd_by_startday_endday(startTime,endime)
+    }
+    if(dayarray.isEmpty) dayarray+=TimeDate.getNdaysBefore_yyyy_MM_dd(1)
     println(dayarray)
     val numsday_array=Array(5,7)
 
-
     var resultarray=new ArrayBuffer[String]()
-    for(day<- dayarray){
+    for(day<- dayarray.toList){
       var resultstr=""
       for(ndays<- numsday_array) {
         println("nowday =="+day+" ndays=="+ndays)
@@ -56,33 +73,45 @@ object ClickRate extends BaseClass{
         val view_sql2="select distinct_id as user_id,properties.topic_id  as topic_id from  dw_logstash.events where length(distinct_id)<=8 and day="+day.replace("-","")+" and  event = 'ViewTopic'"
         val view_sql1 = "select distinct_id as user_id, properties.commodityid as topic_id from  dw_logstash.events where length(distinct_id)<=8 and day="+day.replace("-","")+" and  event = 'commodityDetail'"
         sqlContext.sql(view_sql1).union(sqlContext.sql(view_sql2)).toDF("user_id","topic_id").registerTempTable("view_log")
+        println("view_log count="+sqlContext.sql("select * from view_log").count())
+
 
         //====================get in N days user_id========================
         val user_sql="select distinct(user_id) from dw_mysql.users where user_ctime>"+ndaysbefore_millis+" "
         sqlContext.sql(user_sql).toDF("user_id").registerTempTable("user_log")
+        println("select user_sql="+user_sql)
+        println("user_log count="+sqlContext.sql("select * from user_log").count())
 
         //====================get newbaoguang_log by filter user_id==============
         val baoguang_join_user_sql = "select t1.user_id, t1.topic_id,t1.request_time from baoguang_log as t1 join user_log as t2 on t1.user_id = t2.user_id"
         sqlContext.sql(baoguang_join_user_sql).toDF("user_id","topic_id","request_time").registerTempTable("newbaoguang_log")
+        println("newbaoguang_log count="+sqlContext.sql("select * from newbaoguang_log").count())
 
         //====================get newview_log by filter user_id===================
         val baoguang_left_join_view_sql = "select t1.user_id,t1.topic_id, t2.user_id,t2.topic_id from newbaoguang_log as t1 left join view_log as t2 on t1.user_id = t2.user_id and t1.topic_id = t2.topic_id"
         sqlContext.sql(baoguang_left_join_view_sql).toDF("baoguang_uid","baoguang_tid","view_uid","view_tid").registerTempTable("view_baoguang_log")
+        println("view_baoguang_log count="+sqlContext.sql("select * from view_baoguang_log").count())
+
 
         // =================get in Ndays ClickRate===========================
         val baoguangcount=sqlContext.sql("select * from newbaoguang_log where user_id is not null and topic_id is not null").count().toDouble
         val viewcount=sqlContext.sql("select * from view_baoguang_log where view_uid is not null and view_tid is not null").count()
         import java.text.DecimalFormat
         val format = new DecimalFormat("0.0000")
-        val result_percent=format.format(viewcount/baoguangcount)
+        var result_percent="0.0"
+        if(viewcount!=0&&baoguangcount!=0.0)
+        result_percent=format.format(viewcount/baoguangcount)
+        println("result_percent="+viewcount +"/"+baoguangcount+" =="+viewcount/baoguangcount)
 
         // ==================get before Ndays ClickRate==================
         val viewcount_total=sqlContext.sql("select * from view_log where length(user_id)<=8 ").count
         val viewcount_before=viewcount_total-viewcount
         val baoguang_total=sqlContext.sql("select * from baoguang_log where length(user_id)<=8").count.toDouble
         val baoguangcount_before=baoguang_total-baoguangcount
-        val result_percent_before=format.format(viewcount_before/baoguangcount_before)
-
+        var result_percent_before="0.0"
+        if(viewcount_before!=0&&baoguangcount_before!=0.0)
+        result_percent_before=format.format(viewcount_before/baoguangcount_before)
+        println("result_percent_before="+viewcount_before +"/"+baoguangcount_before+" =="+viewcount_before/baoguangcount_before)
         println("nowday =="+day+",in "+ndays +" clickRate="+result_percent+", out "+ndays+" clickRate= "+result_percent_before)
 
         resultarray+=day+","+ndays+"_in,"+result_percent
@@ -112,6 +141,7 @@ object ClickRate extends BaseClass{
     val detailFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
     val daymillis=common.TimeDate.parse_yyyyMMdd_to_millis(day.replace("-","")).toLong
     val nextdaymillis=common.TimeDate.parse_yyyyMMdd_to_millis(common.TimeDate.getPointDate_NdaysAfter_yyyy_MM_dd(day,1).replace("-","")).toLong
+    println("come in hdfs ,当前查询数据起始时间 ："+daymillis+"～"+nextdaymillis)
     val requestRdd = sc.newAPIHadoopFile[LongWritable, Text, LzoTextInputFormat](
       hdfsPath
     ).map(r=>(r._2.toString)).filter(r=>{
@@ -137,6 +167,7 @@ object ClickRate extends BaseClass{
             val topicObj = topicsArr.getJSONObject(i)
             val datatime = logCal.getTimeInMillis / 1000
             if (datatime > daymillis && datatime < nextdaymillis) {
+              println("topics数组  开始添加数据")
               topics.+=((uid, topicObj.getOrDefault("tid", 0.toString).toString.toLong, datatime))
             }
           })
@@ -172,12 +203,17 @@ object ClickRate extends BaseClass{
     val dbc = mysql_paras.dbc
     val tablename=mysql_paras.clickRate_tablename
     println("mysql url=="+url)
-    var conn = DriverManager.getConnection(url, username, password)
+    val driver = "com.mysql.jdbc.Driver"
+    Class.forName(driver)
+    var connection = DriverManager.getConnection(url, username, password)
+    if(connection.isClosed()){
+      println("error connecting to the Database!");
+    }
     for(data<- list){
       var str=data.split(",")
       var sql= "insert into  " + tablename + "("+mysql_paras.column_day+","+mysql_paras.column_user_create_type+","+mysql_paras.column_launcher_click_ratio+","+mysql_paras.column_create_time+") values (?,?,?,?) "
       println("insert sql="+sql)
-      var ps=conn.prepareStatement(sql)
+      var ps=connection.prepareStatement(sql)
       ps.setString(1,str(0))
       ps.setString(2, str(1))
       ps.setDouble(3, str(2).toDouble)
@@ -185,7 +221,7 @@ object ClickRate extends BaseClass{
       ps.executeUpdate()
       ps.close()
     }
-    conn.close()
+    connection.close()
   }
 
 

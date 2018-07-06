@@ -1,9 +1,7 @@
-package com.sharing.utils
+package com.sharing
 
+import common.DateFormatUtils
 import scopt.OptionParser
-import utils.Params
-
-import scala.collection.mutable
 
 /**
   * Created by xia.jun on 2017/3/6.

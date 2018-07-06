@@ -1,4 +1,4 @@
-package utils
+package com.sharing
 
 /**
  * Created by laishun on 15/10/12.
